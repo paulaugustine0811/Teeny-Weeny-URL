@@ -1,10 +1,9 @@
-
 import { useState } from "react";
 import { UrlData, deleteUrl, getFullShortUrl } from "@/utils/shortener";
 import { timeAgo } from "@/utils/analytics";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { CopyIcon, CheckIcon, TrashIcon, ExternalLinkIcon, ChartIcon } from "lucide-react";
+import { CopyIcon, CheckIcon, TrashIcon, ExternalLinkIcon, ChartBarIcon } from "lucide-react";
 import { motion } from "framer-motion";
 
 interface LinkCardProps {
