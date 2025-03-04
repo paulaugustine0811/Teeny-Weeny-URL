@@ -8,6 +8,9 @@ const CHARACTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz01234567
 // For local storage key
 const STORAGE_KEY = 'teenyweeny_shortened_links';
 
+// Base URL for shortened links
+export const BASE_URL = 'https://teeny-weeny-url.vercel.app';
+
 // Interface for storing URL data
 export interface UrlData {
   id: string;
@@ -153,8 +156,7 @@ export const trackUrlClick = (shortCode: string): UrlData | null => {
  * Get the full shortened URL with base path
  */
 export const getFullShortUrl = (shortCode: string): string => {
-  const baseUrl = window.location.origin;
-  return `${baseUrl}/r/${shortCode}`;
+  return `${BASE_URL}/r/${shortCode}`;
 };
 
 /**

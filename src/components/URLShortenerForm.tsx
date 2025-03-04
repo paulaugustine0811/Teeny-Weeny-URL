@@ -7,7 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { createShortUrl, getFullShortUrl, isValidUrl, isValidCustomCode, isCustomCodeAvailable } from "@/utils/shortener";
+import { createShortUrl, getFullShortUrl, isValidUrl, isValidCustomCode, isCustomCodeAvailable, BASE_URL } from "@/utils/shortener";
 import { motion } from "framer-motion";
 import { CopyIcon, CheckIcon, ExternalLinkIcon, TimerIcon, ClockIcon, ChevronDownIcon } from "lucide-react";
 
@@ -215,7 +215,7 @@ const URLShortenerForm = () => {
                         className="bg-white/5"
                       />
                       <p className="text-xs text-muted-foreground mt-1">
-                        Your URL will be: {window.location.origin}/r/<span className="text-primary">{customCode || 'sale'}</span>
+                        Your URL will be: {BASE_URL}/r/<span className="text-primary">{customCode || 'sale'}</span>
                       </p>
                     </div>
                   )}
