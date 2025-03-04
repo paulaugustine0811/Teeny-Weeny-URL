@@ -1,7 +1,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getUrlByShortCode, trackUrlClick } from "@/utils/shortener";
+import { getUrlByShortCode, trackUrlClick, hasUrlExpired } from "@/utils/shortener";
 import { motion } from "framer-motion";
 
 const Redirect = () => {
@@ -9,6 +9,7 @@ const Redirect = () => {
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isExpired, setIsExpired] = useState(false);
   
   useEffect(() => {
     if (!shortCode) {
@@ -24,6 +25,13 @@ const Redirect = () => {
       return;
     }
     
+    // Check if URL is expired
+    if (hasUrlExpired(urlData)) {
+      setIsExpired(true);
+      setIsLoading(false);
+      return;
+    }
+    
     // Track the click
     trackUrlClick(shortCode);
     
@@ -35,6 +43,48 @@ const Redirect = () => {
     
     return () => clearTimeout(timer);
   }, [shortCode, navigate]);
+  
+  if (isExpired) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="glass-card p-8 rounded-xl text-center max-w-md"
+        >
+          <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center rounded-full bg-amber-500/10">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="text-amber-500"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-bold mb-2">Link Expired</h2>
+          <p className="text-muted-foreground mb-6">
+            The shortened URL you're trying to access has expired and is no longer available.
+          </p>
+          <a
+            href="/"
+            className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2 btn-hover-effect"
+          >
+            Go to Homepage
+          </a>
+        </motion.div>
+      </div>
+    );
+  }
   
   if (error) {
     return (

@@ -16,6 +16,8 @@ export interface UrlData {
   shortCode: string;
   createdAt: number;
   clicks: number;
+  expiresAt: number | null;
+  customCode: boolean;
 }
 
 /**
@@ -39,6 +41,21 @@ export const isValidUrl = (url: string): boolean => {
   } catch (e) {
     return false;
   }
+};
+
+/**
+ * Check if a custom code is valid (alphanumeric only)
+ */
+export const isValidCustomCode = (code: string): boolean => {
+  return /^[a-zA-Z0-9-_]+$/.test(code);
+};
+
+/**
+ * Check if a custom code is already in use
+ */
+export const isCustomCodeAvailable = (code: string): boolean => {
+  const urls = getSavedUrls();
+  return !urls.some(url => url.shortCode === code);
 };
 
 /**
@@ -68,9 +85,18 @@ export const getUrlByShortCode = (shortCode: string): UrlData | null => {
 /**
  * Create a new shortened URL
  */
-export const createShortUrl = (originalUrl: string): UrlData => {
-  // Generate a unique short code
-  const shortCode = generateShortCode();
+export const createShortUrl = (originalUrl: string, options?: { 
+  customCode?: string, 
+  expiresAt?: number | null 
+}): UrlData => {
+  // Use custom code if provided and valid, otherwise generate one
+  const useCustomCode = !!(options?.customCode && isValidCustomCode(options.customCode));
+  
+  if (useCustomCode && !isCustomCodeAvailable(options!.customCode!)) {
+    throw new Error("Custom code is already in use");
+  }
+  
+  const shortCode = useCustomCode ? options!.customCode! : generateShortCode();
   
   // Create URL data object
   const urlData: UrlData = {
@@ -78,7 +104,9 @@ export const createShortUrl = (originalUrl: string): UrlData => {
     originalUrl,
     shortCode,
     createdAt: Date.now(),
-    clicks: 0
+    clicks: 0,
+    expiresAt: options?.expiresAt || null,
+    customCode: !!useCustomCode
   };
   
   // Save to storage
@@ -105,6 +133,14 @@ export const trackUrlClick = (shortCode: string): UrlData | null => {
   
   if (urlIndex === -1) return null;
   
+  // Check if URL has expired
+  if (urls[urlIndex].expiresAt && Date.now() > urls[urlIndex].expiresAt) {
+    // URL has expired, remove it
+    urls.splice(urlIndex, 1);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(urls));
+    return null;
+  }
+  
   // Increment click count
   urls[urlIndex].clicks += 1;
   
@@ -120,4 +156,53 @@ export const trackUrlClick = (shortCode: string): UrlData | null => {
 export const getFullShortUrl = (shortCode: string): string => {
   const baseUrl = window.location.origin;
   return `${baseUrl}/r/${shortCode}`;
+};
+
+/**
+ * Check if a URL has expired
+ */
+export const hasUrlExpired = (urlData: UrlData): boolean => {
+  return !!(urlData.expiresAt && Date.now() > urlData.expiresAt);
+};
+
+/**
+ * Purge all expired URLs from storage
+ */
+export const purgeExpiredUrls = (): number => {
+  const urls = getSavedUrls();
+  const now = Date.now();
+  
+  const validUrls = urls.filter(url => !url.expiresAt || url.expiresAt > now);
+  const removedCount = urls.length - validUrls.length;
+  
+  if (removedCount > 0) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(validUrls));
+  }
+  
+  return removedCount;
+};
+
+/**
+ * Format expiration date for display
+ */
+export const formatExpiration = (expiresAt: number | null): string => {
+  if (!expiresAt) return 'Never';
+  
+  const now = Date.now();
+  if (now > expiresAt) return 'Expired';
+  
+  const diff = expiresAt - now;
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  
+  if (days > 0) {
+    return `${days} day${days > 1 ? 's' : ''}`;
+  }
+  
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  if (hours > 0) {
+    return `${hours} hour${hours > 1 ? 's' : ''}`;
+  }
+  
+  const minutes = Math.floor(diff / (1000 * 60));
+  return `${minutes} minute${minutes > 1 ? 's' : ''}`;
 };

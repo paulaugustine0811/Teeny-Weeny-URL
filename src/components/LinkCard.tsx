@@ -1,10 +1,10 @@
 
 import { useState } from "react";
-import { UrlData, deleteUrl, getFullShortUrl } from "@/utils/shortener";
+import { UrlData, deleteUrl, getFullShortUrl, formatExpiration, hasUrlExpired } from "@/utils/shortener";
 import { timeAgo } from "@/utils/analytics";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { CopyIcon, CheckIcon, TrashIcon, ExternalLinkIcon, ChartBarIcon } from "lucide-react";
+import { CopyIcon, CheckIcon, TrashIcon, ExternalLinkIcon, ChartBarIcon, ClockIcon } from "lucide-react";
 import { motion } from "framer-motion";
 
 interface LinkCardProps {
@@ -16,6 +16,7 @@ const LinkCard = ({ urlData, onDelete }: LinkCardProps) => {
   const [copied, setCopied] = useState(false);
   
   const shortUrl = getFullShortUrl(urlData.shortCode);
+  const isExpired = hasUrlExpired(urlData);
   
   const copyToClipboard = () => {
     navigator.clipboard.writeText(shortUrl)
@@ -44,12 +45,24 @@ const LinkCard = ({ urlData, onDelete }: LinkCardProps) => {
       exit={{ opacity: 0, scale: 0.95 }}
       whileHover={{ y: -5 }}
       transition={{ duration: 0.2 }}
-      className="glass-card rounded-xl p-5 space-y-4 transition-all duration-200 hover:shadow-md"
+      className={`glass-card rounded-xl p-5 space-y-4 transition-all duration-200 hover:shadow-md ${isExpired ? 'opacity-60' : ''}`}
     >
       <div className="space-y-1">
-        <p className="text-xs font-medium text-muted-foreground">
-          Created {timeAgo(urlData.createdAt)}
-        </p>
+        <div className="flex justify-between items-start">
+          <p className="text-xs font-medium text-muted-foreground">
+            Created {timeAgo(urlData.createdAt)}
+          </p>
+          
+          {urlData.expiresAt && (
+            <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+              <ClockIcon className="h-3 w-3" />
+              <span className={isExpired ? "text-destructive" : ""}>
+                {isExpired ? "Expired" : `Expires in ${formatExpiration(urlData.expiresAt)}`}
+              </span>
+            </div>
+          )}
+        </div>
+        
         <h3 className="font-medium text-sm text-card-foreground truncate" title={urlData.originalUrl}>
           {urlData.originalUrl}
         </h3>
@@ -87,11 +100,17 @@ const LinkCard = ({ urlData, onDelete }: LinkCardProps) => {
         </div>
         
         <div className="flex items-center gap-2">
+          {urlData.customCode && (
+            <span className="text-xs px-2 py-0.5 bg-primary/10 text-primary rounded-full">
+              Custom
+            </span>
+          )}
           <Button
             onClick={() => window.open(shortUrl, '_blank')}
             size="icon"
             variant="ghost"
             className="h-8 w-8 btn-hover-effect"
+            disabled={isExpired}
           >
             <ExternalLinkIcon className="h-4 w-4" />
           </Button>
