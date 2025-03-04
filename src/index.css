@@ -81,7 +81,7 @@
 }
 
 .glass-card {
-  @apply bg-white/80 backdrop-blur-md border border-white/20 shadow-sm;
+  @apply bg-white/80 dark:bg-black/40 backdrop-blur-md border border-white/20 dark:border-white/10 shadow-sm;
 }
 
 .link-hover {
@@ -104,4 +104,39 @@
 .page-transition-exit-active {
   opacity: 0;
   transition: opacity 300ms;
+}
+
+/* Button hover animations */
+.btn-hover-effect {
+  @apply transition-all duration-200 hover:translate-y-[-2px] hover:shadow-md active:translate-y-[0px];
+}
+
+/* Smooth background transitions */
+.bg-transition {
+  @apply transition-colors duration-300;
+}
+
+/* Loading animation for URL generation */
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(1.2);
+    opacity: 0;
+  }
+}
+
+.loading-ring {
+  @apply relative;
+}
+
+.loading-ring::before {
+  content: '';
+  @apply absolute inset-0 rounded-full bg-primary animate-[pulse-ring_1.5s_cubic-bezier(0.24,_0,_0.38,_1)_infinite];
+  z-index: -1;
 }

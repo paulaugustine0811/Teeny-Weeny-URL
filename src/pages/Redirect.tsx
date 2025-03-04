@@ -2,11 +2,13 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getUrlByShortCode, trackUrlClick } from "@/utils/shortener";
+import { motion } from "framer-motion";
 
 const Redirect = () => {
   const { shortCode } = useParams<{ shortCode: string }>();
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
     if (!shortCode) {
@@ -18,20 +20,31 @@ const Redirect = () => {
     
     if (!urlData) {
       setError("URL not found");
+      setIsLoading(false);
       return;
     }
     
     // Track the click
     trackUrlClick(shortCode);
     
-    // Redirect to the original URL
-    window.location.href = urlData.originalUrl;
+    // Add a small delay to show loading animation
+    const timer = setTimeout(() => {
+      // Redirect to the original URL
+      window.location.href = urlData.originalUrl;
+    }, 800);
+    
+    return () => clearTimeout(timer);
   }, [shortCode, navigate]);
   
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="glass-card p-8 rounded-xl text-center max-w-md">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="glass-card p-8 rounded-xl text-center max-w-md"
+        >
           <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center rounded-full bg-destructive/10">
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -56,19 +69,24 @@ const Redirect = () => {
           </p>
           <a
             href="/"
-            className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2"
+            className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2 btn-hover-effect"
           >
             Go to Homepage
           </a>
-        </div>
+        </motion.div>
       </div>
     );
   }
   
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="glass-card p-8 rounded-xl text-center max-w-md animate-pulse">
-        <div className="w-16 h-16 rounded-full bg-secondary mx-auto mb-6 flex items-center justify-center">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.3 }}
+        className="glass-card p-8 rounded-xl text-center max-w-md"
+      >
+        <div className="w-16 h-16 rounded-full bg-secondary mx-auto mb-6 flex items-center justify-center loading-ring">
           <svg
             className="animate-spin h-8 w-8 text-primary"
             xmlns="http://www.w3.org/2000/svg"
@@ -92,7 +110,7 @@ const Redirect = () => {
         </div>
         <h2 className="text-xl font-semibold mb-2">Redirecting you</h2>
         <p className="text-muted-foreground">Please wait a moment...</p>
-      </div>
+      </motion.div>
     </div>
   );
 };

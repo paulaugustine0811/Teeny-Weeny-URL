@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { UrlData, deleteUrl, getFullShortUrl } from "@/utils/shortener";
 import { timeAgo } from "@/utils/analytics";
@@ -41,6 +42,8 @@ const LinkCard = ({ urlData, onDelete }: LinkCardProps) => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
+      whileHover={{ y: -5 }}
+      transition={{ duration: 0.2 }}
       className="glass-card rounded-xl p-5 space-y-4 transition-all duration-200 hover:shadow-md"
     >
       <div className="space-y-1">
@@ -67,7 +70,7 @@ const LinkCard = ({ urlData, onDelete }: LinkCardProps) => {
           onClick={copyToClipboard} 
           size="icon" 
           variant="ghost" 
-          className="h-8 w-8"
+          className="h-8 w-8 btn-hover-effect"
         >
           {copied ? (
             <CheckIcon className="h-4 w-4" />
@@ -88,7 +91,7 @@ const LinkCard = ({ urlData, onDelete }: LinkCardProps) => {
             onClick={() => window.open(shortUrl, '_blank')}
             size="icon"
             variant="ghost"
-            className="h-8 w-8"
+            className="h-8 w-8 btn-hover-effect"
           >
             <ExternalLinkIcon className="h-4 w-4" />
           </Button>
@@ -96,7 +99,7 @@ const LinkCard = ({ urlData, onDelete }: LinkCardProps) => {
             onClick={handleDelete}
             size="icon"
             variant="ghost"
-            className="h-8 w-8 text-destructive"
+            className="h-8 w-8 text-destructive btn-hover-effect"
           >
             <TrashIcon className="h-4 w-4" />
           </Button>
