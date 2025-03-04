@@ -1,4 +1,3 @@
-
 /**
  * URL Shortener utility functions
  */
@@ -7,7 +6,7 @@
 const CHARACTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 
 // For local storage key
-const STORAGE_KEY = 'tinyurl_shortened_links';
+const STORAGE_KEY = 'teenyweeny_shortened_links';
 
 // Interface for storing URL data
 export interface UrlData {
@@ -23,7 +22,7 @@ export interface UrlData {
 /**
  * Generate a random short code
  */
-export const generateShortCode = (length: number = 6): string => {
+export const generateShortCode = (length: number = 4): string => {
   let result = '';
   for (let i = 0; i < length; i++) {
     result += CHARACTERS.charAt(Math.floor(Math.random() * CHARACTERS.length));

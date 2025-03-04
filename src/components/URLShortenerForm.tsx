@@ -202,7 +202,7 @@ const URLShortenerForm = () => {
                         checked={customCodeEnabled} 
                         onCheckedChange={setCustomCodeEnabled} 
                       />
-                      <Label htmlFor="custom-code">Custom URL code</Label>
+                      <Label htmlFor="custom-code">Custom slug</Label>
                     </div>
                   </div>
                   
@@ -211,11 +211,11 @@ const URLShortenerForm = () => {
                       <Input
                         value={customCode}
                         onChange={(e) => setCustomCode(e.target.value)}
-                        placeholder="Enter your custom code (e.g., my-brand)"
+                        placeholder="Enter your custom slug (e.g., sale)"
                         className="bg-white/5"
                       />
                       <p className="text-xs text-muted-foreground mt-1">
-                        Your URL will be: {window.location.origin}/r/<span className="text-primary">{customCode || 'my-brand'}</span>
+                        Your URL will be: {window.location.origin}/r/<span className="text-primary">{customCode || 'sale'}</span>
                       </p>
                     </div>
                   )}

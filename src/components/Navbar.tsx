@@ -34,7 +34,7 @@ const Navbar = () => {
             </svg>
           </div>
           <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/70">
-            TinyURL
+            Teeny-Weeny URL
           </span>
         </Link>
         

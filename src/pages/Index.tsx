@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import URLShortenerForm from "@/components/URLShortenerForm";
 import Navbar from "@/components/Navbar";
@@ -36,7 +35,7 @@ const Index = () => {
               transition={{ duration: 0.5 }}
               className="inline-flex items-center rounded-full px-3 py-1 text-sm font-medium bg-primary/10 text-primary mb-2"
             >
-              Simplify your links
+              Small is the new big
             </motion.div>
             
             <motion.h1 
@@ -45,7 +44,7 @@ const Index = () => {
               transition={{ duration: 0.5, delay: 0.1 }}
               className="text-4xl md:text-6xl font-bold tracking-tight"
             >
-              Short links, big <span className="text-primary">impact</span>
+              Teeny-Weeny <span className="text-primary">URL</span>
             </motion.h1>
             
             <motion.p
@@ -54,7 +53,7 @@ const Index = () => {
               transition={{ duration: 0.5, delay: 0.2 }}
               className="max-w-[700px] text-lg md:text-xl text-muted-foreground"
             >
-              Create shortened URLs with a powerful, intuitive interface. 
+              Create shortened URLs with just 4 characters. 
               Get detailed analytics and manage all your links in one place.
             </motion.p>
           </div>
@@ -86,7 +85,7 @@ const Index = () => {
               </div>
               <h3 className="text-xl font-semibold">Lightning Fast</h3>
               <p className="text-muted-foreground">
-                Create short URLs instantly and enjoy rapid redirects for your users.
+                Create short URLs instantly with just 4 characters.
               </p>
             </motion.div>
             
