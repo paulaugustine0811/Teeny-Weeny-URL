@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { UrlData, deleteUrl, getFullShortUrl, formatExpiration, hasUrlExpired } from "@/utils/shortener";
 import { timeAgo } from "@/utils/analytics";
@@ -14,6 +13,7 @@ interface LinkCardProps {
 
 const LinkCard = ({ urlData, onDelete }: LinkCardProps) => {
   const [copied, setCopied] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   const shortUrl = getFullShortUrl(urlData.shortCode);
   const isExpired = hasUrlExpired(urlData);
@@ -30,11 +30,19 @@ const LinkCard = ({ urlData, onDelete }: LinkCardProps) => {
       });
   };
   
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (confirm("Are you sure you want to delete this URL?")) {
-      deleteUrl(urlData.id);
-      onDelete(urlData.id);
-      toast.success("URL deleted successfully!");
+      setIsDeleting(true);
+      try {
+        await deleteUrl(urlData.id);
+        onDelete(urlData.id);
+        toast.success("URL deleted successfully!");
+      } catch (error) {
+        console.error("Error deleting URL:", error);
+        toast.error("Failed to delete URL");
+      } finally {
+        setIsDeleting(false);
+      }
     }
   };
   
@@ -119,6 +127,7 @@ const LinkCard = ({ urlData, onDelete }: LinkCardProps) => {
             size="icon"
             variant="ghost"
             className="h-8 w-8 text-destructive btn-hover-effect"
+            disabled={isDeleting}
           >
             <TrashIcon className="h-4 w-4" />
           </Button>

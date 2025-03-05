@@ -2,12 +2,26 @@
 /**
  * URL Shortener utility functions
  */
+import { db } from "@/lib/firebase";
+import { 
+  collection, 
+  addDoc, 
+  getDocs, 
+  query, 
+  where, 
+  deleteDoc, 
+  doc, 
+  updateDoc, 
+  getDoc,
+  orderBy,
+  limit 
+} from "firebase/firestore";
 
 // Characters used for generating short URLs
 const CHARACTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 
-// For local storage key
-const STORAGE_KEY = 'teenyweeny_shortened_links';
+// Collection name for Firestore
+const COLLECTION_NAME = 'shortened_links';
 
 // Base URL for shortened links
 export const BASE_URL = 'https://teenyweenyurl.xyz';
@@ -56,54 +70,94 @@ export const isValidCustomCode = (code: string): boolean => {
 /**
  * Check if a custom code is already in use
  */
-export const isCustomCodeAvailable = (code: string): boolean => {
-  const urls = getSavedUrls();
-  return !urls.some(url => url.shortCode === code);
+export const isCustomCodeAvailable = async (code: string): Promise<boolean> => {
+  const urlsRef = collection(db, COLLECTION_NAME);
+  const q = query(urlsRef, where("shortCode", "==", code));
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.empty;
 };
 
 /**
- * Save URL data to local storage
+ * Save URL data to Firestore
  */
-export const saveUrl = (urlData: UrlData): void => {
-  const existingData = getSavedUrls();
-  localStorage.setItem(STORAGE_KEY, JSON.stringify([urlData, ...existingData]));
+export const saveUrl = async (urlData: Omit<UrlData, 'id'>): Promise<UrlData> => {
+  const urlsRef = collection(db, COLLECTION_NAME);
+  const docRef = await addDoc(urlsRef, urlData);
+  return { ...urlData, id: docRef.id };
 };
 
 /**
- * Get all saved URLs from local storage
+ * Get all saved URLs from Firestore
  */
-export const getSavedUrls = (): UrlData[] => {
-  const data = localStorage.getItem(STORAGE_KEY);
-  return data ? JSON.parse(data) : [];
+export const getSavedUrls = async (): Promise<UrlData[]> => {
+  const urlsRef = collection(db, COLLECTION_NAME);
+  const q = query(urlsRef, orderBy("createdAt", "desc"));
+  const querySnapshot = await getDocs(q);
+  
+  return querySnapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  } as UrlData));
 };
 
 /**
  * Get a specific URL by short code
  */
-export const getUrlByShortCode = (shortCode: string): UrlData | null => {
-  const urls = getSavedUrls();
-  return urls.find(url => url.shortCode === shortCode) || null;
+export const getUrlByShortCode = async (shortCode: string): Promise<UrlData | null> => {
+  const urlsRef = collection(db, COLLECTION_NAME);
+  const q = query(urlsRef, where("shortCode", "==", shortCode));
+  const querySnapshot = await getDocs(q);
+  
+  if (querySnapshot.empty) return null;
+  
+  const docData = querySnapshot.docs[0];
+  return {
+    id: docData.id,
+    ...docData.data()
+  } as UrlData;
 };
 
 /**
  * Create a new shortened URL
  */
-export const createShortUrl = (originalUrl: string, options?: { 
+export const createShortUrl = async (originalUrl: string, options?: { 
   customCode?: string, 
   expiresAt?: number | null 
-}): UrlData => {
+}): Promise<UrlData> => {
   // Use custom code if provided and valid, otherwise generate one
+  let shortCode: string;
   const useCustomCode = !!(options?.customCode && isValidCustomCode(options.customCode));
   
-  if (useCustomCode && !isCustomCodeAvailable(options!.customCode!)) {
-    throw new Error("Custom code is already in use");
+  if (useCustomCode) {
+    const codeAvailable = await isCustomCodeAvailable(options!.customCode!);
+    if (!codeAvailable) {
+      throw new Error("Custom code is already in use");
+    }
+    shortCode = options!.customCode!;
+  } else {
+    // Generate a unique shortcode
+    let isUnique = false;
+    let attempts = 0;
+    do {
+      shortCode = generateShortCode();
+      // eslint-disable-next-line no-await-in-loop
+      isUnique = await isCustomCodeAvailable(shortCode);
+      attempts++;
+      // Increase length if we have too many collisions
+      if (attempts > 3 && !isUnique) {
+        shortCode = generateShortCode(5);
+        // eslint-disable-next-line no-await-in-loop
+        isUnique = await isCustomCodeAvailable(shortCode);
+      }
+    } while (!isUnique && attempts < 5);
+    
+    if (!isUnique) {
+      throw new Error("Failed to generate a unique code, please try again");
+    }
   }
   
-  const shortCode = useCustomCode ? options!.customCode! : generateShortCode();
-  
   // Create URL data object
-  const urlData: UrlData = {
-    id: crypto.randomUUID(),
+  const urlData: Omit<UrlData, 'id'> = {
     originalUrl,
     shortCode,
     createdAt: Date.now(),
@@ -112,45 +166,43 @@ export const createShortUrl = (originalUrl: string, options?: {
     customCode: !!useCustomCode
   };
   
-  // Save to storage
-  saveUrl(urlData);
-  
-  return urlData;
+  // Save to Firestore
+  return await saveUrl(urlData);
 };
 
 /**
  * Delete a URL by ID
  */
-export const deleteUrl = (id: string): void => {
-  const urls = getSavedUrls();
-  const filteredUrls = urls.filter(url => url.id !== id);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(filteredUrls));
+export const deleteUrl = async (id: string): Promise<void> => {
+  const docRef = doc(db, COLLECTION_NAME, id);
+  await deleteDoc(docRef);
 };
 
 /**
  * Track click for a URL
  */
-export const trackUrlClick = (shortCode: string): UrlData | null => {
-  const urls = getSavedUrls();
-  const urlIndex = urls.findIndex(url => url.shortCode === shortCode);
+export const trackUrlClick = async (shortCode: string): Promise<UrlData | null> => {
+  const urlData = await getUrlByShortCode(shortCode);
   
-  if (urlIndex === -1) return null;
+  if (!urlData) return null;
   
   // Check if URL has expired
-  if (urls[urlIndex].expiresAt && Date.now() > urls[urlIndex].expiresAt) {
+  if (urlData.expiresAt && Date.now() > urlData.expiresAt) {
     // URL has expired, remove it
-    urls.splice(urlIndex, 1);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(urls));
+    await deleteUrl(urlData.id);
     return null;
   }
   
   // Increment click count
-  urls[urlIndex].clicks += 1;
+  const docRef = doc(db, COLLECTION_NAME, urlData.id);
+  await updateDoc(docRef, {
+    clicks: urlData.clicks + 1
+  });
   
-  // Save updated data
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(urls));
-  
-  return urls[urlIndex];
+  return {
+    ...urlData,
+    clicks: urlData.clicks + 1
+  };
 };
 
 /**
@@ -170,18 +222,16 @@ export const hasUrlExpired = (urlData: UrlData): boolean => {
 /**
  * Purge all expired URLs from storage
  */
-export const purgeExpiredUrls = (): number => {
-  const urls = getSavedUrls();
+export const purgeExpiredUrls = async (): Promise<number> => {
+  const urlsRef = collection(db, COLLECTION_NAME);
   const now = Date.now();
+  const q = query(urlsRef, where("expiresAt", "<=", now), where("expiresAt", "!=", null));
+  const querySnapshot = await getDocs(q);
   
-  const validUrls = urls.filter(url => !url.expiresAt || url.expiresAt > now);
-  const removedCount = urls.length - validUrls.length;
+  const deletePromises = querySnapshot.docs.map(doc => deleteDoc(doc.ref));
+  await Promise.all(deletePromises);
   
-  if (removedCount > 0) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(validUrls));
-  }
-  
-  return removedCount;
+  return querySnapshot.size;
 };
 
 /**

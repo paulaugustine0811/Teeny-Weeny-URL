@@ -6,7 +6,7 @@ import Navbar from "@/components/Navbar";
 import LinkCard from "@/components/LinkCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { BarChart3Icon, LinkIcon, SearchIcon, SortAscIcon, SortDescIcon } from "lucide-react";
+import { BarChart3Icon, LinkIcon, SearchIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -15,15 +15,34 @@ const Dashboard = () => {
   const [filteredUrls, setFilteredUrls] = useState<UrlData[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest" | "most-clicks">("newest");
+  const [isLoading, setIsLoading] = useState(true);
+  const [analytics, setAnalytics] = useState({
+    totalUrls: 0,
+    totalClicks: 0,
+    averageClicksPerUrl: 0,
+    topPerformers: [] as UrlData[]
+  });
   
   useEffect(() => {
-    // Load URLs from storage
-    const savedUrls = getSavedUrls();
-    setUrls(savedUrls);
-    setFilteredUrls(savedUrls);
+    // Load URLs from Firebase
+    const loadData = async () => {
+      setIsLoading(true);
+      try {
+        const savedUrls = await getSavedUrls();
+        setUrls(savedUrls);
+        setFilteredUrls(savedUrls);
+        
+        const stats = await getOverallAnalytics();
+        setAnalytics(stats);
+      } catch (error) {
+        console.error("Error loading data:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadData();
   }, []);
-  
-  const analytics = getOverallAnalytics();
   
   const handleDelete = (id: string) => {
     setUrls(urls.filter(url => url.id !== id));

@@ -17,31 +17,39 @@ const Redirect = () => {
       return;
     }
     
-    const urlData = getUrlByShortCode(shortCode);
+    const fetchAndRedirect = async () => {
+      try {
+        const urlData = await getUrlByShortCode(shortCode);
+        
+        if (!urlData) {
+          setError("URL not found");
+          setIsLoading(false);
+          return;
+        }
+        
+        // Check if URL is expired
+        if (hasUrlExpired(urlData)) {
+          setIsExpired(true);
+          setIsLoading(false);
+          return;
+        }
+        
+        // Track the click
+        await trackUrlClick(shortCode);
+        
+        // Add a small delay to show loading animation
+        setTimeout(() => {
+          // Redirect to the original URL
+          window.location.href = urlData.originalUrl;
+        }, 800);
+      } catch (error) {
+        console.error("Error in redirect:", error);
+        setError("Failed to process the URL");
+        setIsLoading(false);
+      }
+    };
     
-    if (!urlData) {
-      setError("URL not found");
-      setIsLoading(false);
-      return;
-    }
-    
-    // Check if URL is expired
-    if (hasUrlExpired(urlData)) {
-      setIsExpired(true);
-      setIsLoading(false);
-      return;
-    }
-    
-    // Track the click
-    trackUrlClick(shortCode);
-    
-    // Add a small delay to show loading animation
-    const timer = setTimeout(() => {
-      // Redirect to the original URL
-      window.location.href = urlData.originalUrl;
-    }, 800);
-    
-    return () => clearTimeout(timer);
+    fetchAndRedirect();
   }, [shortCode, navigate]);
   
   if (isExpired) {

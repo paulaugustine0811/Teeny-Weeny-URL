@@ -4,8 +4,8 @@ import { UrlData, getSavedUrls } from "./shortener";
 /**
  * Get overall analytics for all URLs
  */
-export const getOverallAnalytics = () => {
-  const urls = getSavedUrls();
+export const getOverallAnalytics = async () => {
+  const urls = await getSavedUrls();
   
   return {
     totalUrls: urls.length,

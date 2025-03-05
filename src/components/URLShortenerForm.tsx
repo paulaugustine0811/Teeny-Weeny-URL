@@ -1,15 +1,13 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { createShortUrl, getFullShortUrl, isValidUrl, isValidCustomCode, isCustomCodeAvailable, BASE_URL } from "@/utils/shortener";
 import { motion } from "framer-motion";
-import { CopyIcon, CheckIcon, ExternalLinkIcon, TimerIcon, ClockIcon, ChevronDownIcon } from "lucide-react";
+import { CopyIcon, CheckIcon, ExternalLinkIcon, ChevronDownIcon } from "lucide-react";
 
 const URLShortenerForm = () => {
   const [url, setUrl] = useState("");
@@ -23,7 +21,7 @@ const URLShortenerForm = () => {
   const [expirationType, setExpirationType] = useState("days");
   const [expirationValue, setExpirationValue] = useState("7");
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!url) {
@@ -54,8 +52,15 @@ const URLShortenerForm = () => {
         return;
       }
       
-      if (!isCustomCodeAvailable(customCode)) {
-        toast.error("This custom code is already in use");
+      try {
+        const isAvailable = await isCustomCodeAvailable(customCode);
+        if (!isAvailable) {
+          toast.error("This custom code is already in use");
+          return;
+        }
+      } catch (error) {
+        console.error("Error checking custom code availability:", error);
+        toast.error("Failed to check custom code availability");
         return;
       }
     }
@@ -89,28 +94,25 @@ const URLShortenerForm = () => {
       }
     }
     
-    // Simulate API call with timeout
-    setTimeout(() => {
-      try {
-        const result = createShortUrl(processedUrl, {
-          customCode: customCodeEnabled ? customCode : undefined,
-          expiresAt
-        });
-        
-        const fullShortUrl = getFullShortUrl(result.shortCode);
-        setShortUrl(fullShortUrl);
-        toast.success("URL shortened successfully!");
-      } catch (error) {
-        if (error instanceof Error) {
-          toast.error(error.message);
-        } else {
-          toast.error("Failed to shorten URL");
-        }
-        console.error(error);
-      } finally {
-        setIsLoading(false);
+    try {
+      const result = await createShortUrl(processedUrl, {
+        customCode: customCodeEnabled ? customCode : undefined,
+        expiresAt
+      });
+      
+      const fullShortUrl = getFullShortUrl(result.shortCode);
+      setShortUrl(fullShortUrl);
+      toast.success("URL shortened successfully!");
+    } catch (error) {
+      if (error instanceof Error) {
+        toast.error(error.message);
+      } else {
+        toast.error("Failed to shorten URL");
       }
-    }, 800);
+      console.error(error);
+    } finally {
+      setIsLoading(false);
+    }
   };
   
   const copyToClipboard = () => {
