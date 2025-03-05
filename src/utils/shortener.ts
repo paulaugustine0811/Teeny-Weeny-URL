@@ -1,3 +1,4 @@
+
 /**
  * URL Shortener utility functions
  */
@@ -9,7 +10,7 @@ const CHARACTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz01234567
 const STORAGE_KEY = 'teenyweeny_shortened_links';
 
 // Base URL for shortened links
-export const BASE_URL = 'https://teeny-weeny-url.vercel.app';
+export const BASE_URL = 'https://teenyweenyurl.xyz';
 
 // Interface for storing URL data
 export interface UrlData {
