@@ -27,13 +27,13 @@ const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 
 // Only initialize analytics if in a browser environment
-let analytics;
+let analyticsInstance;
 try {
-  analytics = getAnalytics(app);
+  analyticsInstance = getAnalytics(app);
 } catch (error) {
   console.warn("Firebase Analytics could not be initialized:", error);
 }
-export const analytics = analytics;
+export const analytics = analyticsInstance;
 
 // Enable offline persistence (for better user experience when offline)
 // This is optional but recommended for URL shortener applications
