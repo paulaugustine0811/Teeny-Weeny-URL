@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,12 +21,20 @@ const URLShortenerForm = () => {
   const [expirationEnabled, setExpirationEnabled] = useState(false);
   const [expirationType, setExpirationType] = useState("days");
   const [expirationValue, setExpirationValue] = useState("7");
+  const [error, setError] = useState<string | null>(null);
+  
+  useEffect(() => {
+    // Log the current base URL on component mount
+    console.log("URLShortenerForm mounted, BASE_URL:", BASE_URL);
+  }, []);
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     
     if (!url) {
       toast.error("Please enter a URL");
+      setError("Please enter a URL");
       return;
     }
     
@@ -38,30 +46,38 @@ const URLShortenerForm = () => {
     
     if (!isValidUrl(processedUrl)) {
       toast.error("Please enter a valid URL");
+      setError("Please enter a valid URL");
       return;
     }
+    
+    console.log("Processing URL:", processedUrl);
     
     // Validate custom code if enabled
     if (customCodeEnabled) {
       if (!customCode) {
         toast.error("Please enter a custom code");
+        setError("Please enter a custom code");
         return;
       }
       
       if (!isValidCustomCode(customCode)) {
         toast.error("Custom code can only contain letters, numbers, hyphens and underscores");
+        setError("Custom code can only contain letters, numbers, hyphens and underscores");
         return;
       }
       
       try {
+        console.log("Checking availability of custom code:", customCode);
         const isAvailable = await isCustomCodeAvailable(customCode);
         if (!isAvailable) {
           toast.error("This custom code is already in use");
+          setError("This custom code is already in use");
           return;
         }
       } catch (error) {
         console.error("Error checking custom code availability:", error);
         toast.error("Failed to check custom code availability");
+        setError("Failed to check custom code availability");
         return;
       }
     }
@@ -75,6 +91,7 @@ const URLShortenerForm = () => {
       
       if (isNaN(value) || value <= 0) {
         toast.error("Please enter a valid expiration value");
+        setError("Please enter a valid expiration value");
         setIsLoading(false);
         return;
       }
@@ -96,22 +113,30 @@ const URLShortenerForm = () => {
     }
     
     try {
-      console.log("Attempting to create short URL for:", processedUrl);
+      console.log("Attempting to create short URL for:", processedUrl, "with options:", {
+        customCode: customCodeEnabled ? customCode : undefined,
+        expiresAt
+      });
+      
       const result = await createShortUrl(processedUrl, {
         customCode: customCodeEnabled ? customCode : undefined,
         expiresAt
       });
       
-      console.log("Short URL created:", result);
+      console.log("Short URL created successfully:", result);
       const fullShortUrl = getFullShortUrl(result.shortCode);
+      console.log("Full short URL:", fullShortUrl);
+      
       setShortUrl(fullShortUrl);
       toast.success("URL shortened successfully!");
     } catch (error) {
       console.error("Error creating short URL:", error);
       if (error instanceof Error) {
         toast.error(error.message);
+        setError(error.message);
       } else {
         toast.error("Failed to shorten URL");
+        setError("Failed to shorten URL due to an unknown error");
       }
     } finally {
       setIsLoading(false);
@@ -145,6 +170,12 @@ const URLShortenerForm = () => {
   
   return (
     <div className="w-full max-w-xl mx-auto">
+      {error && (
+        <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-md text-red-600 text-sm">
+          Error: {error}
+        </div>
+      )}
+      
       {!shortUrl ? (
         <motion.div 
           initial={{ opacity: 0, y: 10 }}

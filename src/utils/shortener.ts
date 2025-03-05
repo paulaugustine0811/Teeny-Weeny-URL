@@ -22,10 +22,12 @@ const CHARACTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz01234567
 // Collection name for Firestore
 const COLLECTION_NAME = 'shortened_links';
 
-// Base URL for shortened links
-export const BASE_URL = window.location.hostname === 'localhost' 
+// Base URL for shortened links - ensure it's properly set for production
+export const BASE_URL = window.location.origin.includes('localhost') 
   ? 'http://localhost:5173' 
-  : 'https://teenyweenyurl.xyz'; // Updated with your actual domain
+  : 'https://teenyweenyurl.xyz'; // Your production domain
+
+console.log("Shortener initialized with BASE_URL:", BASE_URL);
 
 // Interface for storing URL data
 export interface UrlData {
@@ -72,19 +74,31 @@ export const isValidCustomCode = (code: string): boolean => {
  * Check if a custom code is already in use
  */
 export const isCustomCodeAvailable = async (code: string): Promise<boolean> => {
-  const urlsRef = collection(db, COLLECTION_NAME);
-  const q = query(urlsRef, where("shortCode", "==", code));
-  const querySnapshot = await getDocs(q);
-  return querySnapshot.empty;
+  try {
+    const urlsRef = collection(db, COLLECTION_NAME);
+    const q = query(urlsRef, where("shortCode", "==", code));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.empty;
+  } catch (error) {
+    console.error("Error checking custom code availability:", error);
+    throw new Error("Failed to check if code is available");
+  }
 };
 
 /**
  * Save URL data to Firestore
  */
 export const saveUrl = async (urlData: Omit<UrlData, 'id'>): Promise<UrlData> => {
-  const urlsRef = collection(db, COLLECTION_NAME);
-  const docRef = await addDoc(urlsRef, urlData);
-  return { ...urlData, id: docRef.id };
+  try {
+    console.log("Attempting to save URL to Firestore:", urlData);
+    const urlsRef = collection(db, COLLECTION_NAME);
+    const docRef = await addDoc(urlsRef, urlData);
+    console.log("URL saved successfully with ID:", docRef.id);
+    return { ...urlData, id: docRef.id };
+  } catch (error) {
+    console.error("Error saving URL to Firestore:", error);
+    throw new Error("Failed to save shortened URL");
+  }
 };
 
 /**
@@ -125,37 +139,51 @@ export const createShortUrl = async (originalUrl: string, options?: {
   customCode?: string, 
   expiresAt?: number | null 
 }): Promise<UrlData> => {
+  console.log("Creating short URL for:", originalUrl, "with options:", options);
+  
   // Use custom code if provided and valid, otherwise generate one
   let shortCode: string;
   const useCustomCode = !!(options?.customCode && isValidCustomCode(options.customCode));
   
   if (useCustomCode) {
-    const codeAvailable = await isCustomCodeAvailable(options!.customCode!);
-    if (!codeAvailable) {
-      throw new Error("Custom code is already in use");
+    try {
+      const codeAvailable = await isCustomCodeAvailable(options!.customCode!);
+      if (!codeAvailable) {
+        throw new Error("Custom code is already in use");
+      }
+      shortCode = options!.customCode!;
+    } catch (error) {
+      console.error("Error checking custom code availability:", error);
+      throw new Error("Failed to check if custom code is available");
     }
-    shortCode = options!.customCode!;
   } else {
     // Generate a unique shortcode
     let isUnique = false;
     let attempts = 0;
-    do {
-      shortCode = generateShortCode();
-      // eslint-disable-next-line no-await-in-loop
-      isUnique = await isCustomCodeAvailable(shortCode);
-      attempts++;
-      // Increase length if we have too many collisions
-      if (attempts > 3 && !isUnique) {
-        shortCode = generateShortCode(5);
+    try {
+      do {
+        shortCode = generateShortCode();
         // eslint-disable-next-line no-await-in-loop
         isUnique = await isCustomCodeAvailable(shortCode);
+        attempts++;
+        // Increase length if we have too many collisions
+        if (attempts > 3 && !isUnique) {
+          shortCode = generateShortCode(5);
+          // eslint-disable-next-line no-await-in-loop
+          isUnique = await isCustomCodeAvailable(shortCode);
+        }
+      } while (!isUnique && attempts < 5);
+      
+      if (!isUnique) {
+        throw new Error("Failed to generate a unique code, please try again");
       }
-    } while (!isUnique && attempts < 5);
-    
-    if (!isUnique) {
-      throw new Error("Failed to generate a unique code, please try again");
+    } catch (error) {
+      console.error("Error generating unique code:", error);
+      throw new Error("Failed to generate a unique code");
     }
   }
+  
+  console.log("Generated short code:", shortCode);
   
   // Create URL data object
   const urlData: Omit<UrlData, 'id'> = {
