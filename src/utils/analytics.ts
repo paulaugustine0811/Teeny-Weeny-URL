@@ -1,5 +1,7 @@
 
 import { UrlData, getSavedUrls } from "./shortener";
+import { db } from "@/lib/firebase";
+import { collection, query, where, orderBy, limit, getDocs } from "firebase/firestore";
 
 /**
  * Get overall analytics for all URLs
@@ -17,6 +19,21 @@ export const getOverallAnalytics = async () => {
       .sort((a, b) => b.clicks - a.clicks)
       .slice(0, 5)
   };
+};
+
+/**
+ * Get the most clicked URLs in the last 7 days
+ */
+export const getRecentTopPerformers = async (days = 7) => {
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - days);
+  const cutoffTimestamp = cutoffDate.getTime();
+  
+  const urls = await getSavedUrls();
+  return urls
+    .filter(url => url.createdAt >= cutoffTimestamp)
+    .sort((a, b) => b.clicks - a.clicks)
+    .slice(0, 5);
 };
 
 /**
