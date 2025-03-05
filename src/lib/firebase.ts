@@ -1,6 +1,6 @@
 
 import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+import { getFirestore, connectFirestoreEmulator } from "firebase/firestore";
 import { getAnalytics } from "firebase/analytics";
 
 // Your web app's Firebase configuration
@@ -17,9 +17,23 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
+console.log("Initializing Firebase with config:", {
+  projectId: firebaseConfig.projectId,
+  authDomain: firebaseConfig.authDomain,
+  databaseURL: firebaseConfig.databaseURL
+});
+
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
-export const analytics = getAnalytics(app);
+
+// Only initialize analytics if in a browser environment
+let analytics;
+try {
+  analytics = getAnalytics(app);
+} catch (error) {
+  console.warn("Firebase Analytics could not be initialized:", error);
+}
+export const analytics = analytics;
 
 // Enable offline persistence (for better user experience when offline)
 // This is optional but recommended for URL shortener applications

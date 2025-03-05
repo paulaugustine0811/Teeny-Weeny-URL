@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -95,21 +96,23 @@ const URLShortenerForm = () => {
     }
     
     try {
+      console.log("Attempting to create short URL for:", processedUrl);
       const result = await createShortUrl(processedUrl, {
         customCode: customCodeEnabled ? customCode : undefined,
         expiresAt
       });
       
+      console.log("Short URL created:", result);
       const fullShortUrl = getFullShortUrl(result.shortCode);
       setShortUrl(fullShortUrl);
       toast.success("URL shortened successfully!");
     } catch (error) {
+      console.error("Error creating short URL:", error);
       if (error instanceof Error) {
         toast.error(error.message);
       } else {
         toast.error("Failed to shorten URL");
       }
-      console.error(error);
     } finally {
       setIsLoading(false);
     }

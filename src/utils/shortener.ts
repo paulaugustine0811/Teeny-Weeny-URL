@@ -25,7 +25,7 @@ const COLLECTION_NAME = 'shortened_links';
 // Base URL for shortened links
 export const BASE_URL = window.location.hostname === 'localhost' 
   ? 'http://localhost:5173' 
-  : 'https://teeny-weeny-url.web.app'; // Update this with your actual Firebase hosting URL
+  : 'https://teenyweenyurl.xyz'; // Updated with your actual domain
 
 // Interface for storing URL data
 export interface UrlData {
