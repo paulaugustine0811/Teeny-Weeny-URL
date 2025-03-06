@@ -1,26 +1,18 @@
+
 /**
- * URL Shortener utility functions
+ * URL Shortener utility functions using localStorage instead of Firebase
  */
 import { db } from "@/lib/firebase";
 import { 
-  collection, 
-  addDoc, 
-  getDocs, 
-  query, 
-  where, 
-  deleteDoc, 
-  doc, 
-  updateDoc, 
-  getDoc,
-  orderBy,
-  limit 
-} from "firebase/firestore";
+  addItem,
+  updateItem,
+  deleteItem,
+  getAllItems,
+  findItemsByProperty
+} from "@/utils/localStorage";
 
 // Characters used for generating short URLs
 const CHARACTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-
-// Collection name for Firestore
-const COLLECTION_NAME = 'shortened_links';
 
 // Default production domain
 const DEFAULT_PRODUCTION_DOMAIN = 'https://www.teenyweenyurl.xyz';
@@ -44,6 +36,7 @@ export const BASE_URL = (() => {
 })();
 
 console.log("Shortener initialized with BASE_URL:", BASE_URL);
+console.log("Using localStorage for data storage");
 
 // Interface for storing URL data
 export interface UrlData {
@@ -54,7 +47,7 @@ export interface UrlData {
   clicks: number;
   expiresAt: number | null;
   customCode: boolean;
-  customDomain?: string; // New field for custom domain
+  customDomain?: string; // Field for custom domain
 }
 
 /**
@@ -100,10 +93,8 @@ export const isValidCustomCode = (code: string): boolean => {
  */
 export const isCustomCodeAvailable = async (code: string): Promise<boolean> => {
   try {
-    const urlsRef = collection(db, COLLECTION_NAME);
-    const q = query(urlsRef, where("shortCode", "==", code));
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.empty;
+    const existingUrls = findItemsByProperty('shortCode', code);
+    return existingUrls.length === 0;
   } catch (error) {
     console.error("Error checking custom code availability:", error);
     throw new Error("Failed to check if code is available");
@@ -111,17 +102,11 @@ export const isCustomCodeAvailable = async (code: string): Promise<boolean> => {
 };
 
 /**
- * Save URL data to Firestore
+ * Save URL data to localStorage
  */
 export const saveUrl = async (urlData: Omit<UrlData, 'id'>): Promise<UrlData> => {
   try {
-    console.log("Attempting to save URL to Firestore:", JSON.stringify(urlData));
-    
-    // Validate the database connection is available
-    if (!db) {
-      console.error("Firebase database instance is not available");
-      throw new Error("Database connection failed");
-    }
+    console.log("Attempting to save URL to localStorage:", JSON.stringify(urlData));
     
     // Check if the URL is valid before saving
     if (!isValidUrl(urlData.originalUrl)) {
@@ -135,37 +120,24 @@ export const saveUrl = async (urlData: Omit<UrlData, 'id'>): Promise<UrlData> =>
       throw new Error("Missing shortCode in URL data");
     }
     
-    console.log("Using Firestore instance:", db ? "DB initialized" : "DB not initialized");
-    
-    // Create a clean object to store in Firestore
-    // Remove any undefined values which Firestore doesn't accept
+    // Create a clean object to store in localStorage
+    // Remove any undefined values
     const cleanUrlData = Object.fromEntries(
       Object.entries(urlData).filter(([_, value]) => value !== undefined)
     );
     
-    console.log("Cleaned URL data for Firestore:", cleanUrlData);
+    console.log("Cleaned URL data for localStorage:", cleanUrlData);
     
-    const urlsRef = collection(db, COLLECTION_NAME);
+    // Add to localStorage and get ID
+    const id = addItem(cleanUrlData);
     
-    // Attempt to add document with clean data
-    console.log("Adding document to collection:", COLLECTION_NAME);
-    const docRef = await addDoc(urlsRef, cleanUrlData);
-    
-    console.log("URL saved successfully with ID:", docRef.id);
-    return { ...urlData, id: docRef.id };
+    console.log("URL saved successfully with ID:", id);
+    return { ...urlData, id };
   } catch (error) {
-    console.error("Error saving URL to Firestore:", error);
+    console.error("Error saving URL to localStorage:", error);
     
-    // Provide more specific error messages
     if (error instanceof Error) {
-      if (error.message.includes("permission-denied")) {
-        throw new Error("Permission denied: Cannot write to database");
-      } else if (error.message.includes("unavailable")) {
-        throw new Error("Database service is currently unavailable");
-      } else if (error.message.includes("not-found")) {
-        throw new Error("Collection not found");
-      }
-      throw new Error(`Failed to save shortened URL: ${error.message}`);
+      throw error;
     }
     
     throw new Error("Failed to save shortened URL");
@@ -173,17 +145,10 @@ export const saveUrl = async (urlData: Omit<UrlData, 'id'>): Promise<UrlData> =>
 };
 
 /**
- * Get all saved URLs from Firestore
+ * Get all saved URLs from localStorage
  */
 export const getSavedUrls = async (): Promise<UrlData[]> => {
-  const urlsRef = collection(db, COLLECTION_NAME);
-  const q = query(urlsRef, orderBy("createdAt", "desc"));
-  const querySnapshot = await getDocs(q);
-  
-  return querySnapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  } as UrlData));
+  return getAllItems() as UrlData[];
 };
 
 /**
@@ -193,22 +158,16 @@ export const getUrlByShortCode = async (shortCode: string): Promise<UrlData | nu
   console.log("Looking up URL with shortCode:", shortCode);
   
   try {
-    const urlsRef = collection(db, COLLECTION_NAME);
-    const q = query(urlsRef, where("shortCode", "==", shortCode));
-    const querySnapshot = await getDocs(q);
+    const matchingUrls = findItemsByProperty('shortCode', shortCode);
     
-    console.log("Query result size:", querySnapshot.size);
+    console.log("Query result size:", matchingUrls.length);
     
-    if (querySnapshot.empty) {
+    if (matchingUrls.length === 0) {
       console.log("No matching URL found for shortCode:", shortCode);
       return null;
     }
     
-    const docData = querySnapshot.docs[0];
-    const urlData = {
-      id: docData.id,
-      ...docData.data()
-    } as UrlData;
+    const urlData = matchingUrls[0] as UrlData;
     
     console.log("Found URL data:", urlData);
     return urlData;
@@ -317,7 +276,7 @@ export const createShortUrl = async (originalUrl: string, options?: {
   console.log("URL data to be saved:", JSON.stringify(urlData));
   
   try {
-    // Save to Firestore
+    // Save to localStorage
     return await saveUrl(urlData);
   } catch (error) {
     console.error("Failed to save URL:", error);
@@ -332,8 +291,7 @@ export const createShortUrl = async (originalUrl: string, options?: {
  * Delete a URL by ID
  */
 export const deleteUrl = async (id: string): Promise<void> => {
-  const docRef = doc(db, COLLECTION_NAME, id);
-  await deleteDoc(docRef);
+  deleteItem(id);
 };
 
 /**
@@ -358,15 +316,13 @@ export const trackUrlClick = async (shortCode: string): Promise<UrlData | null> 
   
   try {
     // Increment click count
-    const docRef = doc(db, COLLECTION_NAME, urlData.id);
-    await updateDoc(docRef, {
-      clicks: urlData.clicks + 1
-    });
+    const newClickCount = urlData.clicks + 1;
+    updateItem(urlData.id, { clicks: newClickCount });
     
     console.log("Click tracked successfully for shortCode:", shortCode);
     return {
       ...urlData,
-      clicks: urlData.clicks + 1
+      clicks: newClickCount
     };
   } catch (error) {
     console.error("Error tracking click:", error);
@@ -396,15 +352,18 @@ export const hasUrlExpired = (urlData: UrlData): boolean => {
  * Purge all expired URLs from storage
  */
 export const purgeExpiredUrls = async (): Promise<number> => {
-  const urlsRef = collection(db, COLLECTION_NAME);
+  const allUrls = getAllItems() as UrlData[];
   const now = Date.now();
-  const q = query(urlsRef, where("expiresAt", "<=", now), where("expiresAt", "!=", null));
-  const querySnapshot = await getDocs(q);
   
-  const deletePromises = querySnapshot.docs.map(doc => deleteDoc(doc.ref));
-  await Promise.all(deletePromises);
+  let deletedCount = 0;
+  allUrls.forEach(url => {
+    if (url.expiresAt && url.expiresAt <= now) {
+      deleteItem(url.id);
+      deletedCount++;
+    }
+  });
   
-  return querySnapshot.size;
+  return deletedCount;
 };
 
 /**
