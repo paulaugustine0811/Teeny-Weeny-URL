@@ -23,19 +23,20 @@ console.log("Initializing Firebase with config:", {
   databaseURL: firebaseConfig.databaseURL
 });
 
+let db;
+let analytics = null;
+
 try {
   const app = initializeApp(firebaseConfig);
-  export const db = getFirestore(app);
+  db = getFirestore(app);
   console.log("Firebase and Firestore initialized successfully");
 
   // Only initialize analytics if in a browser environment
-  let analyticsInstance;
   try {
-    analyticsInstance = getAnalytics(app);
+    analytics = getAnalytics(app);
   } catch (error) {
     console.warn("Firebase Analytics could not be initialized:", error);
   }
-  export const analytics = analyticsInstance;
 
   // Enable offline persistence (for better user experience when offline)
   // This is optional but recommended for URL shortener applications
@@ -61,6 +62,8 @@ try {
   console.error("Failed to initialize Firebase:", error);
   // Fallback initialization for error recovery
   const app = initializeApp(firebaseConfig);
-  export const db = getFirestore(app);
-  export const analytics = null;
+  db = getFirestore(app);
 }
+
+// Export the initialized services
+export { db, analytics };

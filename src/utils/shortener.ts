@@ -1,3 +1,4 @@
+
 /**
  * URL Shortener utility functions
  */
@@ -91,6 +92,8 @@ export const isCustomCodeAvailable = async (code: string): Promise<boolean> => {
 export const saveUrl = async (urlData: Omit<UrlData, 'id'>): Promise<UrlData> => {
   try {
     console.log("Attempting to save URL to Firestore:", urlData);
+    console.log("Using Firestore instance:", db ? "DB initialized" : "DB not initialized");
+    
     const urlsRef = collection(db, COLLECTION_NAME);
     const docRef = await addDoc(urlsRef, urlData);
     console.log("URL saved successfully with ID:", docRef.id);
