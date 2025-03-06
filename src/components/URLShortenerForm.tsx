@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { createShortUrl, getFullShortUrl, isValidUrl, isValidCustomCode, isCustomCodeAvailable, BASE_URL } from "@/utils/shortener";
+import { createShortUrl, getFullShortUrl, isValidUrl, isValidCustomCode, isCustomCodeAvailable, isValidDomain, BASE_URL } from "@/utils/shortener";
 import { motion } from "framer-motion";
 import { CopyIcon, CheckIcon, ExternalLinkIcon, ChevronDownIcon } from "lucide-react";
 
@@ -18,6 +18,8 @@ const URLShortenerForm = () => {
   const [advancedOptions, setAdvancedOptions] = useState(false);
   const [customCodeEnabled, setCustomCodeEnabled] = useState(false);
   const [customCode, setCustomCode] = useState("");
+  const [customDomainEnabled, setCustomDomainEnabled] = useState(false);
+  const [customDomain, setCustomDomain] = useState("");
   const [expirationEnabled, setExpirationEnabled] = useState(false);
   const [expirationType, setExpirationType] = useState("days");
   const [expirationValue, setExpirationValue] = useState("7");
@@ -81,6 +83,28 @@ const URLShortenerForm = () => {
         return;
       }
     }
+
+    // Validate custom domain if enabled
+    let processedCustomDomain: string | undefined = undefined;
+    if (customDomainEnabled) {
+      if (!customDomain) {
+        toast.error("Please enter a custom domain");
+        setError("Please enter a custom domain");
+        return;
+      }
+      
+      processedCustomDomain = customDomain.trim();
+      if (!isValidDomain(processedCustomDomain)) {
+        toast.error("Please enter a valid domain name");
+        setError("Please enter a valid domain name");
+        return;
+      }
+      
+      // Add https:// prefix if not included
+      if (!processedCustomDomain.startsWith('http://') && !processedCustomDomain.startsWith('https://')) {
+        processedCustomDomain = `https://${processedCustomDomain}`;
+      }
+    }
     
     setIsLoading(true);
     
@@ -115,16 +139,18 @@ const URLShortenerForm = () => {
     try {
       console.log("Attempting to create short URL for:", processedUrl, "with options:", {
         customCode: customCodeEnabled ? customCode : undefined,
+        customDomain: processedCustomDomain,
         expiresAt
       });
       
       const result = await createShortUrl(processedUrl, {
         customCode: customCodeEnabled ? customCode : undefined,
+        customDomain: processedCustomDomain,
         expiresAt
       });
       
       console.log("Short URL created successfully:", result);
-      const fullShortUrl = getFullShortUrl(result.shortCode);
+      const fullShortUrl = getFullShortUrl(result.shortCode, result.customDomain);
       console.log("Full short URL:", fullShortUrl);
       
       setShortUrl(fullShortUrl);
@@ -256,6 +282,36 @@ const URLShortenerForm = () => {
                     </div>
                   )}
                 </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <Switch 
+                        id="custom-domain" 
+                        checked={customDomainEnabled} 
+                        onCheckedChange={setCustomDomainEnabled} 
+                      />
+                      <Label htmlFor="custom-domain">Use custom domain</Label>
+                    </div>
+                  </div>
+                  
+                  {customDomainEnabled && (
+                    <div className="pt-2">
+                      <Input
+                        value={customDomain}
+                        onChange={(e) => setCustomDomain(e.target.value)}
+                        placeholder="Enter your domain (e.g., example.com)"
+                        className="bg-white/5"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Your URL will be: {customDomain || 'example.com'}/r/{customCodeEnabled ? customCode || 'sale' : 'xxxx'}
+                      </p>
+                      <p className="text-xs text-amber-500 mt-1">
+                        Note: You must configure your domain's DNS to point to our server. See instructions below.
+                      </p>
+                    </div>
+                  )}
+                </div>
                 
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
@@ -351,6 +407,36 @@ const URLShortenerForm = () => {
               Visit URL
             </Button>
           </div>
+        </motion.div>
+      )}
+
+      {customDomainEnabled && (
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.2 }}
+          className="mt-6 glass-card p-4 rounded-xl"
+        >
+          <h3 className="text-lg font-semibold mb-2">Custom Domain Setup Instructions</h3>
+          <p className="mb-3 text-sm text-muted-foreground">
+            To use your custom domain with our URL shortener, you'll need to configure your domain's DNS settings:
+          </p>
+          <ol className="list-decimal pl-5 space-y-2 text-sm">
+            <li>Go to your domain registrar's website (like GoDaddy, Namecheap, etc.)</li>
+            <li>Access the DNS settings for your domain</li>
+            <li>Add a CNAME record with the following values:
+              <ul className="list-disc pl-5 mt-1">
+                <li><strong>Host/Name:</strong> @ (or subdomain like "go" or "link")</li>
+                <li><strong>Value/Points to:</strong> www.teenyweenyurl.xyz</li>
+                <li><strong>TTL:</strong> Automatic or 3600</li>
+              </ul>
+            </li>
+            <li>Save your changes</li>
+            <li>DNS changes can take 24-48 hours to fully propagate</li>
+          </ol>
+          <p className="mt-3 text-sm text-amber-500">
+            Note: Custom domains require proper DNS configuration before they'll work with our service.
+          </p>
         </motion.div>
       )}
     </div>

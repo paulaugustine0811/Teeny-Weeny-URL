@@ -1,3 +1,4 @@
+
 /**
  * URL Shortener utility functions
  */
@@ -22,6 +23,9 @@ const CHARACTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz01234567
 // Collection name for Firestore
 const COLLECTION_NAME = 'shortened_links';
 
+// Default production domain
+const DEFAULT_PRODUCTION_DOMAIN = 'https://www.teenyweenyurl.xyz';
+
 // Base URL for shortened links - ensure it's properly set for production
 export const BASE_URL = (() => {
   // For local development environments
@@ -34,8 +38,8 @@ export const BASE_URL = (() => {
     return window.location.origin;
   }
   
-  // For production
-  return 'https://teenyweenyurl.xyz';
+  // For production - use the default or detect the current domain if it's custom
+  return DEFAULT_PRODUCTION_DOMAIN;
 })();
 
 console.log("Shortener initialized with BASE_URL:", BASE_URL);
@@ -49,6 +53,7 @@ export interface UrlData {
   clicks: number;
   expiresAt: number | null;
   customCode: boolean;
+  customDomain?: string; // New field for custom domain
 }
 
 /**
@@ -72,6 +77,14 @@ export const isValidUrl = (url: string): boolean => {
   } catch (e) {
     return false;
   }
+};
+
+/**
+ * Validate a domain name
+ */
+export const isValidDomain = (domain: string): boolean => {
+  // Basic domain validation
+  return /^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/.test(domain);
 };
 
 /**
@@ -165,7 +178,8 @@ export const getUrlByShortCode = async (shortCode: string): Promise<UrlData | nu
  */
 export const createShortUrl = async (originalUrl: string, options?: { 
   customCode?: string, 
-  expiresAt?: number | null 
+  expiresAt?: number | null,
+  customDomain?: string
 }): Promise<UrlData> => {
   console.log("Creating short URL for:", originalUrl, "with options:", options);
   
@@ -213,6 +227,19 @@ export const createShortUrl = async (originalUrl: string, options?: {
   
   console.log("Generated short code:", shortCode);
   
+  // Validate custom domain if provided
+  let customDomain = options?.customDomain?.trim();
+  if (customDomain) {
+    if (!isValidDomain(customDomain)) {
+      throw new Error("Please enter a valid domain name");
+    }
+    
+    // Ensure domain has https:// prefix
+    if (!customDomain.startsWith('http://') && !customDomain.startsWith('https://')) {
+      customDomain = `https://${customDomain}`;
+    }
+  }
+  
   // Create URL data object
   const urlData: Omit<UrlData, 'id'> = {
     originalUrl,
@@ -220,7 +247,8 @@ export const createShortUrl = async (originalUrl: string, options?: {
     createdAt: Date.now(),
     clicks: 0,
     expiresAt: options?.expiresAt || null,
-    customCode: !!useCustomCode
+    customCode: !!useCustomCode,
+    customDomain: customDomain || undefined
   };
   
   // Save to Firestore
@@ -277,7 +305,10 @@ export const trackUrlClick = async (shortCode: string): Promise<UrlData | null> 
 /**
  * Get the full shortened URL with base path
  */
-export const getFullShortUrl = (shortCode: string): string => {
+export const getFullShortUrl = (shortCode: string, customDomain?: string): string => {
+  if (customDomain) {
+    return `${customDomain}/r/${shortCode}`;
+  }
   return `${BASE_URL}/r/${shortCode}`;
 };
 
