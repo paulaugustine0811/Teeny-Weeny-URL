@@ -32,37 +32,47 @@ try {
   console.log("Firebase and Firestore initialized successfully");
 
   // Only initialize analytics if in a browser environment
-  try {
-    analytics = getAnalytics(app);
-  } catch (error) {
-    console.warn("Firebase Analytics could not be initialized:", error);
+  if (typeof window !== 'undefined') {
+    try {
+      analytics = getAnalytics(app);
+      console.log("Firebase Analytics initialized successfully");
+    } catch (error) {
+      console.warn("Firebase Analytics could not be initialized:", error);
+    }
   }
 
   // Enable offline persistence (for better user experience when offline)
   // This is optional but recommended for URL shortener applications
-  try {
-    // This will enable the offline persistence feature
-    import('firebase/firestore').then(({ enableIndexedDbPersistence }) => {
-      enableIndexedDbPersistence(db)
-        .catch((err) => {
-          if (err.code === 'failed-precondition') {
-            // Multiple tabs open, persistence can only be enabled in one tab at a time
-            console.warn('Firestore persistence failed: Multiple tabs open');
-          } else if (err.code === 'unimplemented') {
-            // The current browser does not support all of the
-            // features required to enable persistence
-            console.warn('Firestore persistence is not available in this browser');
-          }
-        });
-    });
-  } catch (error) {
-    console.warn('Offline persistence could not be enabled:', error);
+  if (typeof window !== 'undefined') {
+    try {
+      // This will enable the offline persistence feature
+      import('firebase/firestore').then(({ enableIndexedDbPersistence }) => {
+        enableIndexedDbPersistence(db)
+          .catch((err) => {
+            if (err.code === 'failed-precondition') {
+              // Multiple tabs open, persistence can only be enabled in one tab at a time
+              console.warn('Firestore persistence failed: Multiple tabs open');
+            } else if (err.code === 'unimplemented') {
+              // The current browser does not support all of the
+              // features required to enable persistence
+              console.warn('Firestore persistence is not available in this browser');
+            }
+          });
+      });
+    } catch (error) {
+      console.warn('Offline persistence could not be enabled:', error);
+    }
   }
 } catch (error) {
   console.error("Failed to initialize Firebase:", error);
   // Fallback initialization for error recovery
-  const app = initializeApp(firebaseConfig);
-  db = getFirestore(app);
+  try {
+    const app = initializeApp(firebaseConfig);
+    db = getFirestore(app);
+    console.log("Firebase fallback initialization completed");
+  } catch (fallbackError) {
+    console.error("Even fallback Firebase initialization failed:", fallbackError);
+  }
 }
 
 // Export the initialized services

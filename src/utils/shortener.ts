@@ -1,4 +1,3 @@
-
 /**
  * URL Shortener utility functions
  */
@@ -29,13 +28,15 @@ const DEFAULT_PRODUCTION_DOMAIN = 'https://www.teenyweenyurl.xyz';
 // Base URL for shortened links - ensure it's properly set for production
 export const BASE_URL = (() => {
   // For local development environments
-  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    return window.location.origin;
-  }
-  
-  // For the Lovable preview environment
-  if (window.location.hostname.includes('lovableproject.com')) {
-    return window.location.origin;
+  if (typeof window !== 'undefined') {
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      return window.location.origin;
+    }
+    
+    // For the Lovable preview environment
+    if (window.location.hostname.includes('lovableproject.com')) {
+      return window.location.origin;
+    }
   }
   
   // For production - use the default or detect the current domain if it's custom
@@ -114,15 +115,51 @@ export const isCustomCodeAvailable = async (code: string): Promise<boolean> => {
  */
 export const saveUrl = async (urlData: Omit<UrlData, 'id'>): Promise<UrlData> => {
   try {
-    console.log("Attempting to save URL to Firestore:", urlData);
+    console.log("Attempting to save URL to Firestore:", JSON.stringify(urlData));
+    
+    // Validate the database connection is available
+    if (!db) {
+      console.error("Firebase database instance is not available");
+      throw new Error("Database connection failed");
+    }
+    
+    // Check if the URL is valid before saving
+    if (!isValidUrl(urlData.originalUrl)) {
+      console.error("Invalid URL format:", urlData.originalUrl);
+      throw new Error("Invalid URL format");
+    }
+    
+    // Ensure there's a valid shortCode
+    if (!urlData.shortCode) {
+      console.error("Missing shortCode in URL data");
+      throw new Error("Missing shortCode in URL data");
+    }
+    
     console.log("Using Firestore instance:", db ? "DB initialized" : "DB not initialized");
     
     const urlsRef = collection(db, COLLECTION_NAME);
+    
+    // Attempt to add document
+    console.log("Adding document to collection:", COLLECTION_NAME);
     const docRef = await addDoc(urlsRef, urlData);
+    
     console.log("URL saved successfully with ID:", docRef.id);
     return { ...urlData, id: docRef.id };
   } catch (error) {
     console.error("Error saving URL to Firestore:", error);
+    
+    // Provide more specific error messages
+    if (error instanceof Error) {
+      if (error.message.includes("permission-denied")) {
+        throw new Error("Permission denied: Cannot write to database");
+      } else if (error.message.includes("unavailable")) {
+        throw new Error("Database service is currently unavailable");
+      } else if (error.message.includes("not-found")) {
+        throw new Error("Collection not found");
+      }
+      throw new Error(`Failed to save shortened URL: ${error.message}`);
+    }
+    
     throw new Error("Failed to save shortened URL");
   }
 };
@@ -183,12 +220,19 @@ export const createShortUrl = async (originalUrl: string, options?: {
 }): Promise<UrlData> => {
   console.log("Creating short URL for:", originalUrl, "with options:", options);
   
+  // Validate URL
+  if (!isValidUrl(originalUrl)) {
+    console.error("Invalid URL format:", originalUrl);
+    throw new Error("Please enter a valid URL");
+  }
+  
   // Use custom code if provided and valid, otherwise generate one
   let shortCode: string;
   const useCustomCode = !!(options?.customCode && isValidCustomCode(options.customCode));
   
   if (useCustomCode) {
     try {
+      console.log("Checking availability of custom code:", options!.customCode);
       const codeAvailable = await isCustomCodeAvailable(options!.customCode!);
       if (!codeAvailable) {
         throw new Error("Custom code is already in use");
@@ -205,12 +249,14 @@ export const createShortUrl = async (originalUrl: string, options?: {
     try {
       do {
         shortCode = generateShortCode();
+        console.log("Generated code:", shortCode, "Attempt:", attempts + 1);
         // eslint-disable-next-line no-await-in-loop
         isUnique = await isCustomCodeAvailable(shortCode);
         attempts++;
         // Increase length if we have too many collisions
         if (attempts > 3 && !isUnique) {
           shortCode = generateShortCode(5);
+          console.log("Increased code length to 5:", shortCode);
           // eslint-disable-next-line no-await-in-loop
           isUnique = await isCustomCodeAvailable(shortCode);
         }
@@ -225,7 +271,7 @@ export const createShortUrl = async (originalUrl: string, options?: {
     }
   }
   
-  console.log("Generated short code:", shortCode);
+  console.log("Using short code:", shortCode);
   
   // Validate custom domain if provided
   let customDomain = options?.customDomain?.trim();
@@ -251,8 +297,19 @@ export const createShortUrl = async (originalUrl: string, options?: {
     customDomain: customDomain || undefined
   };
   
-  // Save to Firestore
-  return await saveUrl(urlData);
+  // Log the urlData to be saved
+  console.log("URL data to be saved:", JSON.stringify(urlData));
+  
+  try {
+    // Save to Firestore
+    return await saveUrl(urlData);
+  } catch (error) {
+    console.error("Failed to save URL:", error);
+    if (error instanceof Error) {
+      throw error; // Re-throw the specific error
+    }
+    throw new Error("Failed to save shortened URL");
+  }
 };
 
 /**
