@@ -1,4 +1,3 @@
-
 /**
  * URL Shortener utility functions
  */
@@ -24,9 +23,20 @@ const CHARACTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz01234567
 const COLLECTION_NAME = 'shortened_links';
 
 // Base URL for shortened links - ensure it's properly set for production
-export const BASE_URL = window.location.origin.includes('localhost') 
-  ? 'http://localhost:5173' 
-  : 'https://teenyweenyurl.xyz'; // Your production domain
+export const BASE_URL = (() => {
+  // For local development environments
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    return window.location.origin;
+  }
+  
+  // For the Lovable preview environment
+  if (window.location.hostname.includes('lovableproject.com')) {
+    return window.location.origin;
+  }
+  
+  // For production
+  return 'https://teenyweenyurl.xyz';
+})();
 
 console.log("Shortener initialized with BASE_URL:", BASE_URL);
 
@@ -122,17 +132,32 @@ export const getSavedUrls = async (): Promise<UrlData[]> => {
  * Get a specific URL by short code
  */
 export const getUrlByShortCode = async (shortCode: string): Promise<UrlData | null> => {
-  const urlsRef = collection(db, COLLECTION_NAME);
-  const q = query(urlsRef, where("shortCode", "==", shortCode));
-  const querySnapshot = await getDocs(q);
+  console.log("Looking up URL with shortCode:", shortCode);
   
-  if (querySnapshot.empty) return null;
-  
-  const docData = querySnapshot.docs[0];
-  return {
-    id: docData.id,
-    ...docData.data()
-  } as UrlData;
+  try {
+    const urlsRef = collection(db, COLLECTION_NAME);
+    const q = query(urlsRef, where("shortCode", "==", shortCode));
+    const querySnapshot = await getDocs(q);
+    
+    console.log("Query result size:", querySnapshot.size);
+    
+    if (querySnapshot.empty) {
+      console.log("No matching URL found for shortCode:", shortCode);
+      return null;
+    }
+    
+    const docData = querySnapshot.docs[0];
+    const urlData = {
+      id: docData.id,
+      ...docData.data()
+    } as UrlData;
+    
+    console.log("Found URL data:", urlData);
+    return urlData;
+  } catch (error) {
+    console.error("Error fetching URL by shortCode:", error);
+    return null;
+  }
 };
 
 /**
@@ -214,27 +239,39 @@ export const deleteUrl = async (id: string): Promise<void> => {
  * Track click for a URL
  */
 export const trackUrlClick = async (shortCode: string): Promise<UrlData | null> => {
+  console.log("Tracking click for shortCode:", shortCode);
   const urlData = await getUrlByShortCode(shortCode);
   
-  if (!urlData) return null;
+  if (!urlData) {
+    console.log("No URL found to track click for shortCode:", shortCode);
+    return null;
+  }
   
   // Check if URL has expired
   if (urlData.expiresAt && Date.now() > urlData.expiresAt) {
+    console.log("URL has expired, removing it. shortCode:", shortCode);
     // URL has expired, remove it
     await deleteUrl(urlData.id);
     return null;
   }
   
-  // Increment click count
-  const docRef = doc(db, COLLECTION_NAME, urlData.id);
-  await updateDoc(docRef, {
-    clicks: urlData.clicks + 1
-  });
-  
-  return {
-    ...urlData,
-    clicks: urlData.clicks + 1
-  };
+  try {
+    // Increment click count
+    const docRef = doc(db, COLLECTION_NAME, urlData.id);
+    await updateDoc(docRef, {
+      clicks: urlData.clicks + 1
+    });
+    
+    console.log("Click tracked successfully for shortCode:", shortCode);
+    return {
+      ...urlData,
+      clicks: urlData.clicks + 1
+    };
+  } catch (error) {
+    console.error("Error tracking click:", error);
+    // Return the original URL data even if tracking fails
+    return urlData;
+  }
 };
 
 /**

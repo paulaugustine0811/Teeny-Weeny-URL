@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getUrlByShortCode, trackUrlClick, hasUrlExpired } from "@/utils/shortener";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
 
 const Redirect = () => {
   const { shortCode } = useParams<{ shortCode: string }>();
@@ -13,39 +14,60 @@ const Redirect = () => {
   
   useEffect(() => {
     if (!shortCode) {
+      console.error("No shortCode provided in URL params");
       navigate("/");
       return;
     }
     
+    console.log("Redirect component mounted with shortCode:", shortCode);
+    
     const fetchAndRedirect = async () => {
       try {
+        console.log("Fetching URL data for shortCode:", shortCode);
         const urlData = await getUrlByShortCode(shortCode);
         
         if (!urlData) {
+          console.error("URL not found for shortCode:", shortCode);
           setError("URL not found");
           setIsLoading(false);
+          toast.error("The shortened URL you're trying to access doesn't exist");
           return;
         }
         
+        console.log("URL data found:", urlData);
+        
         // Check if URL is expired
         if (hasUrlExpired(urlData)) {
+          console.log("URL has expired:", urlData);
           setIsExpired(true);
           setIsLoading(false);
+          toast.error("This link has expired");
           return;
         }
         
         // Track the click
+        console.log("Tracking click for shortCode:", shortCode);
         await trackUrlClick(shortCode);
+        
+        // Validate the original URL
+        let targetUrl = urlData.originalUrl;
+        if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
+          console.log("URL doesn't have protocol, adding https://", targetUrl);
+          targetUrl = 'https://' + targetUrl;
+        }
+        
+        console.log("Redirecting to:", targetUrl);
         
         // Add a small delay to show loading animation
         setTimeout(() => {
           // Redirect to the original URL
-          window.location.href = urlData.originalUrl;
+          window.location.href = targetUrl;
         }, 800);
       } catch (error) {
         console.error("Error in redirect:", error);
         setError("Failed to process the URL");
         setIsLoading(false);
+        toast.error("An error occurred while processing your request");
       }
     };
     
