@@ -137,11 +137,19 @@ export const saveUrl = async (urlData: Omit<UrlData, 'id'>): Promise<UrlData> =>
     
     console.log("Using Firestore instance:", db ? "DB initialized" : "DB not initialized");
     
+    // Create a clean object to store in Firestore
+    // Remove any undefined values which Firestore doesn't accept
+    const cleanUrlData = Object.fromEntries(
+      Object.entries(urlData).filter(([_, value]) => value !== undefined)
+    );
+    
+    console.log("Cleaned URL data for Firestore:", cleanUrlData);
+    
     const urlsRef = collection(db, COLLECTION_NAME);
     
-    // Attempt to add document
+    // Attempt to add document with clean data
     console.log("Adding document to collection:", COLLECTION_NAME);
-    const docRef = await addDoc(urlsRef, urlData);
+    const docRef = await addDoc(urlsRef, cleanUrlData);
     
     console.log("URL saved successfully with ID:", docRef.id);
     return { ...urlData, id: docRef.id };
@@ -275,6 +283,10 @@ export const createShortUrl = async (originalUrl: string, options?: {
   
   // Validate custom domain if provided
   let customDomain = options?.customDomain?.trim();
+  if (customDomain === '') {
+    customDomain = undefined;
+  }
+  
   if (customDomain) {
     if (!isValidDomain(customDomain)) {
       throw new Error("Please enter a valid domain name");
@@ -294,8 +306,12 @@ export const createShortUrl = async (originalUrl: string, options?: {
     clicks: 0,
     expiresAt: options?.expiresAt || null,
     customCode: !!useCustomCode,
-    customDomain: customDomain || undefined
   };
+  
+  // Only add customDomain if it's a non-empty string
+  if (customDomain) {
+    urlData.customDomain = customDomain;
+  }
   
   // Log the urlData to be saved
   console.log("URL data to be saved:", JSON.stringify(urlData));
