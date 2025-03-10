@@ -2,14 +2,10 @@
 // Mock Firebase implementation using localStorage
 console.log("Using localStorage instead of Firebase");
 
-// Mock Firestore DB
-const db = {
-  // This is just a reference object to maintain API compatibility
+// Mock Firestore DB - just for compatibility with original API
+export const db = {
   collection: () => "localStorage"
 };
 
 // No analytics in localStorage version
-const analytics = null;
-
-// Export the mock services
-export { db, analytics };
+export const analytics = null;
