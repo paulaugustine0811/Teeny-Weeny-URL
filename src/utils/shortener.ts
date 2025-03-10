@@ -22,14 +22,17 @@ console.log("Using localStorage for data storage");
 
 // Re-export useful utilities and types
 export { 
-  UrlData,
+  // Re-export type with 'export type' syntax
+  type UrlData,
   BASE_URL, 
   getFullShortUrl, 
   formatExpiration, 
   hasUrlExpired,
   isValidUrl,
   isValidCustomCode,
-  isValidDomain
+  isValidDomain,
+  // Export isCustomCodeAvailable to fix the first error
+  isCustomCodeAvailable
 };
 
 /**

@@ -33,11 +33,21 @@ export const saveUrl = async (urlData: Omit<UrlData, 'id'>): Promise<UrlData> =>
   try {
     console.log("Attempting to save URL to localStorage:", JSON.stringify(urlData));
     
-    // Create a clean object to store in localStorage
-    // Remove any undefined values
-    const cleanUrlData = Object.fromEntries(
-      Object.entries(urlData).filter(([_, value]) => value !== undefined)
-    );
+    // Create a copy of urlData with proper typing, instead of using Object.fromEntries
+    // This ensures we maintain the correct type structure
+    const cleanUrlData: Omit<UrlData, 'id'> = {
+      originalUrl: urlData.originalUrl,
+      shortCode: urlData.shortCode,
+      createdAt: urlData.createdAt,
+      clicks: urlData.clicks,
+      expiresAt: urlData.expiresAt,
+      customCode: urlData.customCode,
+    };
+    
+    // Only add customDomain if it exists in the original data
+    if (urlData.customDomain) {
+      cleanUrlData.customDomain = urlData.customDomain;
+    }
     
     console.log("Cleaned URL data for localStorage:", cleanUrlData);
     
